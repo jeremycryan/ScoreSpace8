@@ -4,6 +4,7 @@ import sys
 import random
 import math
 import os
+import threading
 
 # Third party libraries
 import pygame
@@ -14,6 +15,8 @@ from walls import Walls
 from slice import Slice
 from enemy import Enemy, BigEnemy, SmallEnemy
 from background import Background
+from button import Button
+from sprocket import Sprocket
 import constants as c
 import helpers as h
 
@@ -40,9 +43,12 @@ class Game:
                             pygame.mixer.Sound(os.path.join(c.ASSETS_PATH, "tear4.wav"))]
         self.bad_tear_sounds = [pygame.mixer.Sound(os.path.join(c.ASSETS_PATH, "bad_tear1.wav")),
                                 pygame.mixer.Sound(os.path.join(c.ASSETS_PATH, "bad_tear2.wav"))]
+        self.retry_button = Button((c.MIDDLE_X, c.MIDDLE_Y + 50), "Retry", visible=False)
+        self.submit_button = Button((c.MIDDLE_X, c.MIDDLE_Y + 100), "Submit", visible=False)
+        self.buttons = [self.retry_button,
+                        self.submit_button]
 
         while True:
-            self.reset()
             self.main()
 
     def tear_sound(self):
@@ -54,22 +60,39 @@ class Game:
         #random.choice(self.bad_tear_sounds).play()
 
     def update_enemies(self, dt, events):
-        while len(self.enemies) < 30:
-            spacing = (c.WINDOW_HEIGHT//4) * (self.enemies[-1].y + 10000)/10000 \
+        while len(self.enemies) < 10:
+            spacing = (c.WINDOW_HEIGHT//4) * (self.enemies[-1].y + 16000)/16000 \
                       + random.random() * c.WINDOW_HEIGHT//3 \
                       - c.WINDOW_HEIGHT//8
+            if spacing > c.WINDOW_HEIGHT*0.85:
+                spacing = c.WINDOW_HEIGHT*0.85
             padding = 50
             x = random.random()*(self.walls.width - 2 * padding) \
                        + c.MIDDLE_X \
                        - (self.walls.width - 2 * padding)/2
             y = self.enemies[-1].y + spacing
             seed = random.random()
-            if seed < 0.6:
-                new_enemy = Enemy
-            elif seed < 0.8:
-                new_enemy = BigEnemy
+            if self.y_offset < 2000:
+                if seed < 0.3:
+                    new_enemy = Enemy
+                elif seed < 0.7:
+                    new_enemy = BigEnemy
+                else:
+                    new_enemy = SmallEnemy
+            elif self.y_offset < 5000:
+                if seed < 0.5:
+                    new_enemy = Enemy
+                elif seed < 0.7:
+                    new_enemy = BigEnemy
+                else:
+                    new_enemy = SmallEnemy
             else:
-                new_enemy = SmallEnemy
+                if seed < 0.7:
+                    new_enemy = Enemy
+                elif seed < 0.8:
+                    new_enemy = BigEnemy
+                else:
+                    new_enemy = SmallEnemy
             self.enemies.append(new_enemy(self, x=x, y=y))
 
     def reset(self):
@@ -100,6 +123,10 @@ class Game:
         self.shade.fill(c.BLACK)
         self.shade_2.set_alpha(0)
 
+        self.shade_3 = pygame.Surface(c.WINDOW_SIZE)
+        self.shade.fill(c.BLACK)
+        self.shade_3.set_alpha(255)
+
         self.flare = pygame.Surface(c.WINDOW_SIZE)
         self.flare.fill((255, 226, 140))
         self.flare.set_alpha(0)
@@ -111,8 +138,20 @@ class Game:
 
         self.game_end = False
 
+        self.retry_button.visible = False
+        self.submit_button.visible = False
+        self.closing = False
+        self.freeze_surf = None
+
+        for button in self.buttons:
+            button.disabled = False
+
 
     def update_effects(self, dt, events):
+        if self.queue_reset:
+            self.retry_button.visible = True
+            self.submit_button.visible = True
+
         self.since_effect += dt
         if self.since_effect > 0:
             self.effect_slow = 1.0
@@ -148,7 +187,7 @@ class Game:
         if self.queue_reset:
             self.target_score_size = 80
             dy = c.MIDDLE_Y - self.score_yoff
-            self.score_yoff = min(self.score_yoff + dy*5*dt, c.MIDDLE_Y - self.score_size//2)
+            self.score_yoff = min(self.score_yoff + dy*5*dt, c.MIDDLE_Y - 100)
 
 
     def score(self):
@@ -221,8 +260,6 @@ class Game:
         self.shade.set_alpha(128 * self.aimingness)
         self.slowdown = 1 - 0.95 * self.aimingness
 
-
-
     def draw_shade(self):
         self.screen.blit(self.shade, (0, 0))
 
@@ -247,6 +284,8 @@ class Game:
         return self.screen_position_to_game_position(mpos)
 
     def main(self):
+        self.reset()
+
         then = time.time()
         self.clock.tick(c.MAX_FPS)
         time.sleep(0.001)
@@ -267,6 +306,8 @@ class Game:
             if self.queue_reset:
                 new_alpha = self.shade_2.get_alpha() + 500 * dt
                 self.shade_2.set_alpha(min(new_alpha, 160))
+            for button in self.buttons:
+                button.update(rdt, events)
             self.slice.update(rdt, events)
             self.update_effects(rdt, events)
             self.player.update(dt, events)
@@ -301,8 +342,28 @@ class Game:
             self.player.draw(self.screen)
             if self.queue_reset:
                 self.screen.blit(self.shade_2, (0, 0))
+            if self.submit_button.clicked:
+                self.freeze_surf = self.screen.copy()
             self.draw_score()
+            for button in self.buttons:
+                button.draw(self.screen)
+            self.screen.blit(self.shade_3, (0, 0))
             self.update_screen()
+
+            # Other things?
+            if self.submit_button.clicked:
+                status = self.submit_score('john')
+                print(f"STATUS: {status}")
+            if self.retry_button.clicked:
+                self.closing = True
+            if self.closing:
+                new_alpha = self.shade_3.get_alpha() + 1000 * dt
+                self.shade_3.set_alpha(min(new_alpha, 255))
+                if self.shade_3.get_alpha() == 255:
+                    break
+            else:
+                new_alpha = self.shade_3.get_alpha() - 1000 * dt
+                self.shade_3.set_alpha(max(new_alpha, 0))
 
             self.clock.tick(c.MAX_FPS)
 
@@ -319,7 +380,7 @@ class Game:
                     self.player.dash_toward(self.mouse_position(), 300)
                     self.aiming = False
                     self.aimingness = 0
-            if event.type == pygame.MOUSEBUTTONDOWN and not self.player.cutting:
+            if event.type == pygame.MOUSEBUTTONDOWN and not self.player.cutting and not self.queue_reset:
                 if event.button == 1:
                     self.shade_target_alpha = 100
                     self.aiming = True
@@ -333,6 +394,42 @@ class Game:
 
     def player_is_dead(self):
         return self.player.y < self.y_offset - 50
+
+    def get_sprocket(self, container):
+        try:
+            sprocket = Sprocket(c.SERVER_ADDR, c.SERVER_PORT)
+            container.append(sprocket)
+        except Exception as e:
+            print(e)
+
+    def submit_score(self, name):
+        container = []
+        start_thread_num = threading.active_count()
+        threading.Thread(target=self.get_sprocket, args=(container,), daemon=True).start()
+        while threading.active_count() > start_thread_num:
+            dt = self.clock.tick(60)/1000
+            self.screen.blit(self.freeze_surf, (0, 0))
+            self.draw_score()
+            for button in self.buttons:
+                button.disabled = True
+                button.update(dt, [])
+                button.draw(self.screen)
+            self.update_globals(dt)
+            pygame.display.flip()
+        if not container:
+            return c.NO_CONNECT
+        sprocket = container[0]
+        sprocket.send(type="push", score=self.score(), name=name)
+        result = []
+        while not result:
+            self.update_globals(self.clock.tick(60))
+            result = sprocket.get()
+        result = result[0]
+        print(result)
+        if result.has("success") and result.success:
+            return c.SCORE_RECEIVED
+        else:
+            return c.TIMEOUT
 
 
 if __name__=="__main__":

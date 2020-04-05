@@ -149,7 +149,7 @@ class SmallEnemy(Enemy):
         self.radius = 35
         self.x = x
         self.y = y
-        self.angle = random.random() * 60 - 30
+        self.angle = random.random() * 60 + 15
         self.surf = pygame.image.load(os.path.join(c.ASSETS_PATH, "small_lantern.png"))
         self.draw_surf = pygame.transform.rotate(self.surf, self.angle)
         self.touched_surf = pygame.image.load(os.path.join(c.ASSETS_PATH, "small_lantern_touched.png"))
