@@ -93,13 +93,15 @@ class Player:
 
         if self.game.walls.is_too_far_left(self):
             self.bounce_right()
+            self.x = c.MIDDLE_X - self.game.walls.width//2 + self.radius
             self.game.shake_effect(4)
         elif self.game.walls.is_too_far_right(self):
             self.bounce_left()
+            self.x = c.MIDDLE_X + self.game.walls.width // 2 - self.radius
             self.game.shake_effect(4)
 
         for enemy in self.game.enemies:
-            if self.colliding_with(enemy) and (self.velocity[1] > 300 or self.cutting):
+            if self.colliding_with(enemy) and (self.velocity[1] > 550 or self.cutting):
                 self.slice(enemy)
 
         if self.cut_so_far >= self.cut_distance:
@@ -123,7 +125,7 @@ class Player:
 
 
         speed_to_add = 1000
-        minimum_y = 1000
+        minimum_y = 1300
         if 0.5 - abs(amt) < 0.02:
             amt = 0.5
             self.game.slowdown_effect()

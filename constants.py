@@ -8,3 +8,5 @@ ASSETS_PATH = "assets"
 
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
+
+MAX_FPS = 65

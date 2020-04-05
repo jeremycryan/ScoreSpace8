@@ -14,6 +14,7 @@ class Background:
 
         self.layer_1 = pygame.image.load(os.path.join(c.ASSETS_PATH, "background_layer_1.png"))
         self.layer_2 = pygame.image.load(os.path.join(c.ASSETS_PATH, "background_layer_2.png"))
+        self.layer_2_5 = pygame.image.load(os.path.join(c.ASSETS_PATH, "background_layer_2.5.png"))
         self.layer_3 = pygame.image.load(os.path.join(c.ASSETS_PATH, "background_layer_3.png"))
 
     def update(self, dt, events):
@@ -28,6 +29,27 @@ class Background:
             surface.blit(self.gray_rect,
                          (self.game.shake_offset, c.WINDOW_HEIGHT - offset + self.game.shake_offset))
             offset += 200
-        surface.blit(self.layer_3, (0, height/6/slowness - 600))
-        surface.blit(self.layer_2, (0, height / 5 / slowness - 250))
-        surface.blit(self.layer_1, (0, height / 4 / slowness))
+
+        padding = 20
+        x = c.MIDDLE_X - self.game.walls.width//2 - padding
+        y = height/12/slowness - 800
+        w = self.game.walls.width + padding * 2
+        surface.blit(self.layer_3, (x, y), (x, 0, w, self.layer_3.get_height()))
+
+        padding = 20
+        x = c.MIDDLE_X - self.game.walls.width//2 - padding
+        y = height/9/slowness - 150
+        w = self.game.walls.width + padding * 2
+        surface.blit(self.layer_2_5, (x, y), (x, 0, w, self.layer_2_5.get_height()))
+
+        padding = 20
+        x = c.MIDDLE_X - self.game.walls.width//2 - padding
+        y = height / 7 / slowness - 200
+        w = self.game.walls.width + padding * 2
+        surface.blit(self.layer_2, (x, y), (x, 0, w, self.layer_2.get_height()))
+
+        padding = 20
+        x = c.MIDDLE_X - self.game.walls.width//2 - padding
+        y = height/5/slowness
+        w = self.game.walls.width + padding * 2
+        surface.blit(self.layer_1, (x, y), (x, 0, w, self.layer_1.get_height()))

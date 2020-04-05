@@ -41,7 +41,10 @@ class Particle:
         surface.blit(self.temp_surf, (x, y))
 
     def destroy(self):
-        self.game.particles.remove(self)
+        if self in self.game.particles:
+            self.game.particles.remove(self)
+        else:
+            self.game.text_particles.remove(self)
 
 
 class Chunk(Particle):
@@ -52,7 +55,7 @@ class Chunk(Particle):
         surface = pygame.Surface((5, 5))
         surface.fill(color)
         xv = random.random()**2 * 250 - 100 + 0.5 * game.player.velocity[0] * random.random()
-        yv = random.random()**2 * 800 - 200 + 0.5 * game.player.velocity[1] * random.random()
+        yv = random.random()**2 * 400 - 200 + 0.7 * game.player.velocity[1] * random.random()
         self.radius = 0
         super().__init__(game, surface, position, rotation=0, angle=0, velocity=(xv, yv), gravity=800)
 

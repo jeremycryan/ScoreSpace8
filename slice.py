@@ -17,7 +17,7 @@ class Slice:
         period = 1
         space = 8
         radius = 2
-        color = (150, 150, 150)
+        color = (255, 255, 255)
         start_x = self.game.player.x
         start_y = self.game.player.y
         end_x, end_y = self.game.mouse_position()
@@ -51,7 +51,7 @@ class Slice:
             enemy.touched = False
         if not self.game.aiming:
             return set()
-        points = 100
+        points = 25
         start_x = self.game.player.x
         start_y = self.game.player.y
         end_x, end_y = self.game.mouse_position()
@@ -66,6 +66,8 @@ class Slice:
             x = start_x + dxu*distance
             y = start_y + dyu*distance
             for enemy in self.game.enemies:
+                if enemy.y > self.game.y_offset + 2*c.WINDOW_HEIGHT:
+                    continue
                 dist = ((x - enemy.x)**2 + (y - enemy.y)**2)**0.5
                 if dist < enemy.radius:
                     enemies_touched.add(enemy)
