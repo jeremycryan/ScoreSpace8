@@ -14,6 +14,7 @@ from player import Player
 from walls import Walls
 from slice import Slice
 from enemy import Enemy, BigEnemy, SmallEnemy, TutorialEnemy
+from scoreboard import Scoreboard
 from background import Background
 from button import Button
 from sprocket import Sprocket
@@ -37,6 +38,7 @@ class Game:
         pygame.display.set_caption(c.GAME_NAME)
         self.clock = pygame.time.Clock()
         self.name = "WWWW"
+        self.max_score = None
 
         self.port_on_load = get_server_port()
         self.error_message = ""
@@ -72,6 +74,8 @@ class Game:
         self.reset_sound = pygame.mixer.Sound(os.path.join(c.ASSETS_PATH, "reset.wav"))
         self.reset_sound.set_volume(1.5)
         self.typing.set_volume(0.7)
+        self.wings_charged = pygame.mixer.Sound(os.path.join(c.ASSETS_PATH, "wings_charged.wav"))
+        self.wings_used = pygame.mixer.Sound(os.path.join(c.ASSETS_PATH, "wings_used.wav"))
         self.sus = pygame.mixer.Sound(os.path.join(c.ASSETS_PATH, "sus.wav"))
         self.retry_button = Button((c.MIDDLE_X, c.MIDDLE_Y + 50), "Retry", visible=False)
         self.submit_button = Button((c.MIDDLE_X, c.MIDDLE_Y + 100), "Submit", visible=False)
@@ -267,7 +271,11 @@ class Game:
 
     def draw_error_text(self, surface):
         self.loading_font = pygame.font.Font(os.path.join(c.ASSETS_PATH, "gothland.ttf"), 20)
-        surf = self.loading_font.render(self.error_message, 1, c.WHITE)
+        surf = self.loading_font.render(self.error_message, 0, c.WHITE)
+        if self.phase == c.GAME_PHASE:
+            surf = surf.convert()
+            surf.set_colorkey(c.BLACK)
+            surf.set_alpha(255 - 155*self.aimingness)
         surface.blit(surf, (c.MIDDLE_X - surf.get_width()//2, c.WINDOW_HEIGHT - 30))
 
     def reset(self):
@@ -285,7 +293,7 @@ class Game:
         self.aiming = False
         self.aimingness = 0
 
-        self.score_yoff = 40
+        self.score_yoff = 50
         self.score_size = 40
         self.target_score_size = 40
         self.score_bumped = True
@@ -335,6 +343,8 @@ class Game:
 
 
     def update_effects(self, dt, events):
+        if self.max_score is not None and self.score() > self.max_score:
+            self.error_message = "NEW HIGH SCORE"
         self.music.set_volume(0.8 - 0.6 * self.aimingness)
 
         if self.player_is_dead():
@@ -485,9 +495,9 @@ class Game:
             since_print += rdt
             fpss.insert(0, 1/rdt)
             fpss = fpss[:100]
-            if since_print > 1.0:
-                since_print = 0
-                print(f"FPS: {sum(fpss)/len(fpss)}")
+            # if since_print > 1.0:
+            #     since_print = 0
+            #     print(f"FPS: {sum(fpss)/len(fpss)}")
 
             # Do things
             dt, events = self.update_globals(rdt)
@@ -552,7 +562,7 @@ class Game:
                     return 0
                 elif status == c.NO_CONNECT:
                     self.submit_button.clicked = False
-                    self.error_message = "No Internet"
+                    self.error_message = "No Internet connection"
                 elif status == c.TIMEOUT:
                     self.submit_button.clicked = False
                     self.error_message = "Server timed out"
@@ -573,6 +583,8 @@ class Game:
 
     def update_globals(self, dt):
         events = pygame.event.get()
+        if self.phase == c.GAME_PHASE and self.player.y < self.y_offset - 100:
+            self.player.test_wings()
         if self.phase == c.GAME_PHASE and self.player_is_dead():
             self.queue_reset = True
         for event in events:
@@ -591,13 +603,15 @@ class Game:
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_r and self.phase == c.GAME_PHASE:
                     self.queue_reset = True
+                if event.key == pygame.K_f:
+                    self.player.flying = not self.player.flying
         return dt * min(self.slowdown, self.effect_slow), events
 
     def update_screen(self):
         pygame.display.flip()
 
     def player_is_dead(self):
-        return self.player.y < self.y_offset - 50
+        return self.player.y < self.y_offset - 50 and not self.player.flying and not self.player.has_wings
 
     def get_sprocket(self, container):
         try:
@@ -612,7 +626,6 @@ class Game:
     def submit_score(self):
         name = self.name
         container = []
-        start_thread_num = threading.active_count()
         threading.Thread(target=self.get_sprocket, args=(container,), daemon=True).start()
         age = 0
         while not container:
@@ -657,6 +670,7 @@ class Game:
         y = int(c.WINDOW_HEIGHT - (size*10 + (spacing-size)*9))//2 + 50
         green = (60, 210, 100)
         shadow_offset = 3
+        self.max_score = scores[9].score
         for item in scores[:10]:
             if item.name == self.name and item.score == self.score():
                 color = green

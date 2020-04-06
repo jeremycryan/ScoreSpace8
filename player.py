@@ -20,16 +20,52 @@ class Player:
         self.max_fall_speed = 600
         self.cutting = False
         self.cut_so_far = 0
+        self.flying = False
+        self.fly_start = 0
+        self.rwing = pygame.image.load(os.path.join(c.ASSETS_PATH, "wing.png")).convert()
+        self.lwing = pygame.transform.flip(self.rwing, 1, 0).convert()
+        self.rwing.set_colorkey(c.BLACK)
+        self.lwing.set_colorkey(c.BLACK)
+        self.wing_alpha = 0
+        self.wing_gauge_max = 12
+        self.wing_gauge_current = 0
+        self.wing_gauge_back = pygame.image.load(os.path.join(c.ASSETS_PATH, "wing_gauge.png"))
+        self.wing_gauge_front = pygame.image.load(os.path.join(c.ASSETS_PATH, "wing_gauge_full.png"))
+        self.wing_gauge_full = pygame.image.load(os.path.join(c.ASSETS_PATH, "wing_gauge_100.png"))
+        for gauge in [self.wing_gauge_back, self.wing_gauge_front, self.wing_gauge_full]:
+            gauge.set_colorkey((255, 0, 255))
+        size = 70, 35
+        self.wing_gauge_back = pygame.transform.scale(self.wing_gauge_back, size).convert()
+        self.wing_gauge_front = pygame.transform.scale(self.wing_gauge_front, size).convert()
+        self.wing_gauge_full = pygame.transform.scale(self.wing_gauge_full, size).convert()
+        self.wing_gauge_back.set_alpha(95)
+        self.wing_gauge_front.set_alpha(170)
 
         self.surf = pygame.image.load(os.path.join(c.ASSETS_PATH, "player.png"))
 
         self.cut_distance = 250
         self.cut_speed = 1500
+        self.fly_duration = 3.5
 
         self.max_speed = 4000
+        self.age = 0
 
         # Radius for collisions
         self.radius = 10
+
+    @property
+    def has_wings(self):
+        return (self.wing_gauge_current == self.wing_gauge_max)
+
+    def test_wings(self):
+        if self.has_wings:
+            self.game.wings_used.play()
+            self.flying = True
+            self.fly_start = self.age
+            self.wing_alpha = 200
+            self.wing_gauge_current = 0
+            self.wing_gauge_max *= 1.5
+            self.wing_gauge_max = int(self.wing_gauge_max)
 
     def bounce_left(self):
         self.velocity = (-abs(self.velocity[0]),
@@ -82,7 +118,15 @@ class Player:
         return angle/math.pi * 180
 
     def update(self, dt, events):
-        if not self.cutting:
+        self.age += dt
+
+        if self.age - self.fly_start > self.fly_duration:
+            self.flying = False
+
+        if not self.flying:
+            self.wing_alpha = max(0, self.wing_alpha - 400*dt)
+
+        if not self.cutting and not self.flying:
             self.x += self.velocity[0] * dt
             self.y += self.velocity[1] * dt
             self.velocity = (self.velocity[0] * self.accel**dt,
@@ -90,7 +134,7 @@ class Player:
             self.velocity = (self.velocity[0],
                              max(-self.max_fall_speed, self.velocity[1]))
 
-        else:
+        elif not self.flying:
             x_component = self.velocity[0] / (self.velocity[0]**2 + self.velocity[1]**2)**0.5
             self.x += self.cut_speed * x_component * dt
             y_component = self.velocity[1] / (self.velocity[0] ** 2 + self.velocity[1] ** 2) ** 0.5
@@ -107,8 +151,20 @@ class Player:
             self.game.shake_effect(4)
 
         for enemy in self.game.enemies:
-            if self.colliding_with(enemy) and (self.velocity[1] > 550 or self.cutting):
+            if self.colliding_with(enemy) and (self.velocity[1] > 550 or self.cutting) and not self.flying:
                 self.slice(enemy)
+
+        if self.flying:
+            x, y = self.velocity
+            x = 0
+            y = max(y + dt*self.gravity, 1200)
+            target_x = c.MIDDLE_X + math.sin(self.age*2.5) * self.game.walls.width * 0.5
+            dx = target_x - self.x
+            x = dx * 1.25
+            self.x += dx*dt
+            self.velocity = x, y
+
+            self.y += self.velocity[1] * dt
 
         if self.cut_so_far >= self.cut_distance:
             self.cutting = False
@@ -138,6 +194,10 @@ class Player:
             speed_to_add = 2000 * self.game.launch_factor_multiplier()
             minimum_y = 2000 * self.game.launch_factor_multiplier()
             self.game.multiplier += 1
+            old = self.wing_gauge_current
+            self.wing_gauge_current = min(self.wing_gauge_max, self.wing_gauge_current + 1)
+            if self.wing_gauge_current != old and self.has_wings:
+                self.game.wings_charged.play()
         else:
             if type(enemy) == TutorialEnemy:
                 amt = 0.12
@@ -149,9 +209,45 @@ class Player:
         self.add_speed(speed_to_add * (amt*2)**2)
         self.velocity = (self.velocity[0], max(self.velocity[1], minimum_y*((amt*2)**2)))
 
+    def draw_wing_gauge(self, surface):
+        if self.game.player_is_dead():
+            return
+        x = c.MIDDLE_X
+        y = 40
+        prop = self.wing_gauge_current/self.wing_gauge_max
+        padding = 3
+        width_adjust = (self.wing_gauge_front.get_width() - 2*padding) * prop
+
+        surface.blit(self.wing_gauge_back,
+                     (x - self.wing_gauge_back.get_width()//2, y - self.wing_gauge_back.get_height()//2))
+        surface.blit(self.wing_gauge_front,
+                     (x - self.wing_gauge_front.get_width()//2 + padding, y - self.wing_gauge_front.get_height()//2),
+                     (padding, 0, width_adjust, self.wing_gauge_back.get_height()))
+        if self.wing_gauge_current == self.wing_gauge_max:
+            surface.blit(self.wing_gauge_full,
+                         (x - self.wing_gauge_back.get_width()//2, y - self.wing_gauge_back.get_height()//2))
+
+
     def draw(self, surface):
+
+        self.draw_wing_gauge(surface)
+
         x, y = self.game.game_position_to_screen_position((self.x, self.y))
         x, y = int(x), int(y)
+
+        if self.flying or self.wing_alpha > 0:
+            rot = math.sin(self.age*2) * 30
+            width = 35 - 0.12*rot
+            offset = rot*0.7 + 24
+            new_left = pygame.transform.rotate(self.lwing, -rot)
+            new_right = pygame.transform.rotate(self.rwing, rot)
+            new_left.set_alpha(max(self.wing_alpha + rot, 0))
+            new_right.set_alpha(max(self.wing_alpha + rot, 0))
+            surface.blit(new_right,
+                         (x - new_right.get_width()//2 + width, y - new_right.get_height()//2 - offset))
+            surface.blit(new_left,
+                         (x - new_left.get_width() // 2 - width, y - new_left.get_height() // 2 - offset))
+
         mag = (self.velocity[0]**2 + self.velocity[1]**2) ** 0.5
         msize = (3 + 3*mag/self.max_speed)
         medium = pygame.Surface((self.radius * msize, self.radius * msize))

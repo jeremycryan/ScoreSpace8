@@ -116,7 +116,7 @@ class Enemy:
             surf2.set_colorkey((255, 0, 255))
             surf2.set_alpha(90)
             self.game.text_particles.append(Fadeout(self.game, surf2, (self.x, self.y), rate=200))
-            self.game.flare_up(40)
+            self.game.flare_up(60)
             self.game.tear_sound()
         elif abs(cut_prop - 0.5) < 0.25:
             surf = good_surf.copy().convert()
