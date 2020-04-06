@@ -4,6 +4,7 @@ import math
 from particle import Particle, Chunk, Fadeout
 import os
 import random
+import time
 
 
 lantern_surf = pygame.image.load(os.path.join(c.ASSETS_PATH, "lantern.png"))
@@ -14,6 +15,7 @@ perfect_surf = pygame.image.load(os.path.join(c.ASSETS_PATH, "perfect.png"))
 perfect_surf_large = pygame.transform.scale(perfect_surf, (perfect_surf.get_width()*2, perfect_surf.get_height()*2))
 good_surf = pygame.image.load(os.path.join(c.ASSETS_PATH, "good.png"))
 okay_surf = pygame.image.load(os.path.join(c.ASSETS_PATH, "okay.png"))
+nope_surf = pygame.image.load(os.path.join(c.ASSETS_PATH, "nope.png"))
 
 
 class Enemy:
@@ -142,6 +144,27 @@ class BigEnemy(Enemy):
         self.launch_factor = 1.3
         self.age = 0
         self.glow = self.generate_glow()
+
+class TutorialEnemy(BigEnemy):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def draw(self, surface):
+        super().draw(surface)
+
+    def destroy(self, cut_prop=0.5):
+        if abs(cut_prop - 0.5) < 0.02:
+            super().destroy(cut_prop=cut_prop)
+        else:
+            self.game.nope.play()
+            self.game.shake_effect(15)
+            surf = nope_surf.copy().convert()
+            surf.set_colorkey((255, 0, 255))
+            surf.set_alpha(255)
+            self.game.text_particles.append(Fadeout(self.game, surf, (self.x, self.y), rate=400))
+            self.since_hit = 0
+
 
 class SmallEnemy(Enemy):
     def __init__(self, game, x=c.WINDOW_WIDTH//2, y=c.WINDOW_HEIGHT//2):

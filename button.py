@@ -5,7 +5,7 @@ import constants as c
 
 class Button:
 
-    def __init__(self, position, text, dimensions=(100, 50), visible=True):
+    def __init__(self, position, text, dimensions=(100, 50), visible=True, true_scale=1.0):
         self.x = position[0]
         self.y = position[1]
         self.width = dimensions[0]
@@ -15,6 +15,7 @@ class Button:
         self.disabled = False
         self.clicked = False
 
+        self.true_scale = true_scale
         self.scale = 1.0
         self.target_scale = 1.0
         self.font_size = 40
@@ -72,7 +73,7 @@ class Button:
     def draw(self, surface):
         if not self.visible:
             return
-        self.font = pygame.font.Font(os.path.join(c.ASSETS_PATH, "no_continue.ttf"), int(self.font_size))
+        self.font = pygame.font.Font(os.path.join(c.ASSETS_PATH, "no_continue.ttf"), int(self.font_size * self.true_scale))
         surf = self.font.render(self.text, 0, self.color())
         self.width = surf.get_width()
         self.height = surf.get_height()

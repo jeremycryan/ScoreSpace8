@@ -2,6 +2,9 @@ import pygame
 import constants as c
 import math
 import time
+import os
+
+from enemy import TutorialEnemy
 
 
 class Player:
@@ -18,8 +21,10 @@ class Player:
         self.cutting = False
         self.cut_so_far = 0
 
+        self.surf = pygame.image.load(os.path.join(c.ASSETS_PATH, "player.png"))
+
         self.cut_distance = 250
-        self.cut_speed = 2000
+        self.cut_speed = 1500
 
         self.max_speed = 4000
 
@@ -29,10 +34,12 @@ class Player:
     def bounce_left(self):
         self.velocity = (-abs(self.velocity[0]),
                          self.velocity[1])
+        self.game.bounce.play()
 
     def bounce_right(self):
         self.velocity = (abs(self.velocity[0]),
                          self.velocity[1])
+        self.game.bounce.play()
 
     def dash_toward(self, position, speed):
         if not self.game.slice.touched:
@@ -48,6 +55,8 @@ class Player:
         self.velocity = (rel_x * speed/mag,
                          rel_y * speed/mag)
 
+        self.game.dash.play()
+
     def add_speed(self, amount):
         mag = (self.velocity[0]**2 + self.velocity[1]**2)**0.5
         unit_x = self.velocity[0]/mag
@@ -61,9 +70,6 @@ class Player:
         if mag > self.max_speed:
             self.velocity = (self.velocity[0] * self.max_speed/mag,
                              self.velocity[1] * self.max_speed/mag)
-        if self.y < 100 and self.velocity[1] < 0 and not self.cutting:
-            self.velocity = (0, 0)
-
     def colliding_with(self, other):
         dx = self.x - other.x
         dy = self.y - other.y
@@ -123,19 +129,21 @@ class Player:
         else:
             enemy.destroy(1 - (amt % 1))
 
-
         speed_to_add = 1000
         minimum_y = 1300
         if 0.5 - abs(amt) < 0.02:
             amt = 0.5
             self.game.slowdown_effect()
             self.game.shake_effect(25)
-            speed_to_add = 2000
-            minimum_y = 2000
+            speed_to_add = 2000 * self.game.launch_factor_multiplier()
+            minimum_y = 2000 * self.game.launch_factor_multiplier()
             self.game.multiplier += 1
         else:
-            self.game.shake_effect(10)
-            self.game.slowdown_effect(0.05)
+            if type(enemy) == TutorialEnemy:
+                amt = 0.12
+            else:
+                self.game.shake_effect(10)
+                self.game.slowdown_effect(0.05)
         speed_to_add *= enemy.launch_factor
         minimum_y *= enemy.launch_factor
         self.add_speed(speed_to_add * (amt*2)**2)
@@ -144,4 +152,23 @@ class Player:
     def draw(self, surface):
         x, y = self.game.game_position_to_screen_position((self.x, self.y))
         x, y = int(x), int(y)
-        pygame.draw.circle(surface, c.WHITE, (x, y), self.radius)
+        mag = (self.velocity[0]**2 + self.velocity[1]**2) ** 0.5
+        msize = (3 + 3*mag/self.max_speed)
+        medium = pygame.Surface((self.radius * msize, self.radius * msize))
+        pygame.draw.circle(medium, c.WHITE, (int(self.radius*msize//2), int(self.radius*msize//2)), int(self.radius*msize//2))
+        medium.set_colorkey(c.BLACK)
+        medium.set_alpha(100 + 20*mag/self.max_speed)
+
+        lsize = 4 + 6*mag/self.max_speed
+        color_bump = int(50*mag/self.max_speed)
+        large = pygame.Surface((self.radius * lsize, self.radius * lsize))
+        pygame.draw.circle(large, (100 + color_bump//2, 150 + color_bump//2, 255),
+                           (int(self.radius*lsize//2),
+                            int(self.radius*lsize//2)),
+                           int(self.radius*lsize//2))
+        large.set_colorkey(c.BLACK)
+        large.set_alpha(40 + 40 * mag/self.max_speed)
+
+        surface.blit(medium, (x - medium.get_width()//2, y - medium.get_width()//2))
+        surface.blit(large, (x - large.get_width()//2, y - large.get_width()//2))
+        surface.blit(self.surf, (x - self.surf.get_width()//2, y - self.surf.get_width()//2))

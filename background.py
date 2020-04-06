@@ -25,31 +25,38 @@ class Background:
 
         height = self.game.y_offset
         slowness = 10
-        while offset < c.WINDOW_HEIGHT + 200:
-            surface.blit(self.gray_rect,
-                         (self.game.shake_offset, c.WINDOW_HEIGHT - offset + self.game.shake_offset))
-            offset += 200
 
         padding = 20
         x = c.MIDDLE_X - self.game.walls.width//2 - padding
-        y = height/12/slowness - 800
+        y = height/18/slowness - 4500
         w = self.game.walls.width + padding * 2
-        surface.blit(self.layer_3, (x, y), (x, 0, w, self.layer_3.get_height()))
+        navy = (19, 29, 71)
+        if y > 0:
+            surface.fill(navy)
+        h = c.WINDOW_HEIGHT
+        if h > 0:
+            surface.blit(self.layer_3, (x, 0), (x, -y, w, h))
 
         padding = 20
         x = c.MIDDLE_X - self.game.walls.width//2 - padding
         y = height/9/slowness - 150
         w = self.game.walls.width + padding * 2
-        surface.blit(self.layer_2_5, (x, y), (x, 0, w, self.layer_2_5.get_height()))
+        h = c.WINDOW_HEIGHT
+        if h > 0:
+            surface.blit(self.layer_2_5, (x, 0), (x, -y, w, h))
 
         padding = 20
         x = c.MIDDLE_X - self.game.walls.width//2 - padding
         y = height / 7 / slowness - 200
         w = self.game.walls.width + padding * 2
-        surface.blit(self.layer_2, (x, y), (x, 0, w, self.layer_2.get_height()))
+        h = c.WINDOW_HEIGHT
+        if h > 0:
+            surface.blit(self.layer_2, (x, 0), (x, -y, w, h))
 
         padding = 20
         x = c.MIDDLE_X - self.game.walls.width//2 - padding
         y = height/5/slowness
         w = self.game.walls.width + padding * 2
-        surface.blit(self.layer_1, (x, y), (x, 0, w, self.layer_1.get_height()))
+        h = c.WINDOW_HEIGHT
+        if h > 0:
+            surface.blit(self.layer_1, (x, 0), (x, -y, w, h))
