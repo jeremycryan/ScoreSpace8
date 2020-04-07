@@ -6,6 +6,9 @@ __pycache__/
 # My stuff
 .idea/
 *.prof
+crash_log.txt
+with_excludes.txt
+
 
 # C extensions
 *.so

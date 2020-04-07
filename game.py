@@ -1,6 +1,7 @@
 # Python imports
 import time
 import sys
+import traceback
 import random
 import math
 import os
@@ -603,8 +604,6 @@ class Game:
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_r and self.phase == c.GAME_PHASE:
                     self.queue_reset = True
-                if event.key == pygame.K_f:
-                    self.player.flying = not self.player.flying
         return dt * min(self.slowdown, self.effect_slow), events
 
     def update_screen(self):
@@ -748,4 +747,10 @@ def get_server_port():
         return None
 
 if __name__=="__main__":
-    Game()
+    try:
+        Game()
+    except Exception as e:
+        with open("crash_log.txt", "a") as f:
+            f.write(traceback.format_exc())
+            f.write(str(e))
+            f.write("-"*20+"\n")
